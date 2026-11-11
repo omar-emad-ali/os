@@ -1,0 +1,5 @@
+#pid	resourceid	capturetime	releasetime
+1	r1	1	6
+2	r1	1	3
+3	r1	1	3
+4	r1	1	3
