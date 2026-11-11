@@ -1,16 +1,4 @@
-/*
- * test_doc_examples.c - P3's modules against the project document examples.
- *
- * The expected files in tests/cases/doc_* are transcribed from the PDF.
- *  1. logger + stats: for every doc example, rebuild every log line and the
- *     perf file from the numbers in the expected log; both must match
- *     exactly (checks the wait formula, WTA rounding, util/avg/std rules).
- *  2. RR end to end: fake engine + rr.c on the RR example.
- *  3. SJF end to end: fake engine + a TEST-ONLY SJF plug-in built on heap.c
- *     (P2 writes the real sjf.c; this proves the heap and the engine order).
- *
- * Run from tests/unit (the Makefile does this).
- */
+/* Tests for documented examples. */
 #include <stdlib.h>
 #include "test_util.h"
 #include "../../heap.h"
@@ -20,7 +8,7 @@
 #define REBUILT_LOG  "test_doc_rebuilt.log"
 #define REBUILT_PERF "test_doc_rebuilt.perf"
 
-/* Copy of a file into a heap string (slurp() returns a shared buffer). */
+/* Read a file into a string. */
 static char *read_all(const char *path)
 {
     const char *s = slurp(path);
@@ -38,7 +26,7 @@ static LogState parse_state(const char *s)
     return LOG_FINISHED;
 }
 
-/* Part 1: rebuild the log and perf of one doc case from its expected log. */
+/* Rebuild output for one documented case. */
 static void check_formats(const char *name)
 {
     char path[256], line[256];
@@ -77,7 +65,7 @@ static void check_formats(const char *name)
     free(expected_perf);
 }
 
-/* Read processes.txt of a case into jobs[] (tab separated, # comments). */
+/* Read a case's process list. */
 static int load_jobs(const char *name, Job *jobs, int max)
 {
     char path[256], line[256];
@@ -95,7 +83,7 @@ static int load_jobs(const char *name, Job *jobs, int max)
     return n;
 }
 
-/* Run the fake engine on a case and diff with its expected files. */
+/* Run a case and compare its output. */
 static void check_engine(const char *name, SchedAlgo *algo, int quantum, int cs)
 {
     Job jobs[64];
@@ -115,7 +103,7 @@ static void check_engine(const char *name, SchedAlgo *algo, int quantum, int cs)
     free(exp);
 }
 
-/* ---- TEST-ONLY SJF plug-in (non-preemptive; ties: arrival, then ID) ---- */
+/* Test-only SJF plug-in. */
 static Heap *sjf_heap;
 static int sjf_cmp(const void *a, const void *b)
 {

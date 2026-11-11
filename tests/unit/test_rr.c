@@ -1,13 +1,4 @@
-/*
- * test_rr.c - Unit tests for rr.c (P3)
- *
- * Part 1 drives the plug-in API directly, one assumption at a time.
- * Part 2 runs a tiny single-process FAKE ENGINE (no fork, no IPC, no clock)
- * that follows the per-second order of the task document, writes a real
- * scheduler.log / .perf through logger.c and stats.c, and compares them with
- * hand-computed timelines. P2 can use fake_engine() as a reference when
- * checking scheduler.c: both must produce the same files.
- */
+/* Unit tests for Round Robin. */
 #include <stdlib.h>
 #include "test_util.h"
 #include "../../sched_algo.h"
@@ -16,7 +7,7 @@
 
 #include "fake_engine.h"
 
-/* =================== Part 1: plug-in API =================== */
+/* Plug-in API tests. */
 
 static void test_init(void)
 {
@@ -31,7 +22,7 @@ static void test_init(void)
     RR_ALGO.cleanup();
 }
 
-/* Assumption 2: expiry + arrival in the same second -> arrival first. */
+/* Arrivals stay ahead of preempted processes. */
 static void test_assumption_2_and_3(void)
 {
     AlgoParams prm = { .quantum = 2, .context_switch_time = 1, .process_count = 4 };
@@ -49,7 +40,7 @@ static void test_assumption_2_and_3(void)
     RR_ALGO.on_ready(&a);
     CHECK(RR_ALGO.pick_next(3) == &b);           /* switch 3 -> 4 */
     RR_ALGO.on_arrival(&d);                      /* arrives during switch */
-    /* queue must be: c (arrival, assumption 2), a (preempted), d (assumption 3) */
+    /* Queue order is c, a, d. */
     CHECK(RR_ALGO.ready_count() == 3);
     CHECK(RR_ALGO.pick_next(5) == &c);
     CHECK(RR_ALGO.pick_next(5) == &a);
@@ -57,7 +48,7 @@ static void test_assumption_2_and_3(void)
     RR_ALGO.cleanup();
 }
 
-/* Assumptions 4 and 5. */
+/* Quantum boundary cases. */
 static void test_assumption_4_and_5(void)
 {
     AlgoParams prm = { .quantum = 3, .context_switch_time = 1, .process_count = 2 };
@@ -65,7 +56,7 @@ static void test_assumption_4_and_5(void)
     PCB a, b;
     make_pcb(&a, 1, 1, 7); make_pcb(&b, 2, 1, 3);
 
-    /* (5) alone: expiry with empty queue -> keep running, new quantum */
+    /* An empty queue starts a new quantum. */
     RR_ALGO.on_arrival(&a);
     CHECK(RR_ALGO.pick_next(1) == &a);
     run_for(&a, 2);
@@ -80,14 +71,14 @@ static void test_assumption_4_and_5(void)
     RR_ALGO.on_ready(&a);
     CHECK(RR_ALGO.pick_next(7) == &b);
 
-    /* (4) b finishes exactly at the end of its quantum */
+    /* Finishing at the quantum boundary does not preempt. */
     run_for(&b, 3);
     CHECK(b.remaining == 0);
     CHECK(RR_ALGO.should_preempt(&b, 11) == 0);  /* finished, not stopped */
     RR_ALGO.cleanup();
 }
 
-/* Context-switch seconds must not count in the quantum. */
+/* Context-switch time does not count toward the quantum. */
 static void test_quantum_ignores_switch(void)
 {
     AlgoParams prm = { .quantum = 2, .context_switch_time = 5, .process_count = 2 };
@@ -106,18 +97,7 @@ static void test_quantum_ignores_switch(void)
     RR_ALGO.cleanup();
 }
 
-/* Mixed case, quantum 3, switch 1. Hand-computed timeline:
- *  1      P1 starts (idle CPU, no overhead)       runs 1,2,3
- *  2      P2 arrives -> queue [P2]
- *  4      P3 arrives -> [P2,P3]; P1 quantum ends -> stopped, [P2,P3,P1]
- *  4..5   switch;  P2 started at 5 (wait 5-2-0 = 3)     runs 5,6
- *  7      P2 finished (TA 5, WTA 2.50) -> switch at once (assumption 7)
- *  8      P3 started (wait 8-4 = 4)                     runs 8,9,10
- *  11     P3 finished at its quantum end (assumption 4) TA 7 WTA 2.33
- *  12     P1 resumed (wait 12-1-3 = 8)                  runs 12,13
- *  14     P1 finished TA 13 WTA 2.60
- *  perf: util floor(1000/14)=71 ; avg WTA 2.4778 ; wait floor(15/3)=5 ; std 0.11
- */
+/* Mixed scheduling case. */
 static void test_engine_mixed(void)
 {
     Job jobs[] = { {1, 1, 5}, {2, 2, 2}, {3, 4, 3} };
@@ -142,7 +122,7 @@ static void test_engine_mixed(void)
     CHECK(stats_preemptions() == 1);
 }
 
-/* Assumption 5 end to end: one process, quantum 3, runtime 7 -> no stop line. */
+/* A single process does not produce stop lines. */
 static void test_engine_single(void)
 {
     Job jobs[] = { {1, 1, 7} };
@@ -154,7 +134,7 @@ static void test_engine_single(void)
         "At time 8 process 1 finished arr 1 total 7 remain 0 wait 0 TA 7 WTA 1.00\n");
 }
 
-/* Idle gap: P2 arrives after P1 finished -> starts with no overhead. */
+/* An idle CPU adds no switch overhead. */
 static void test_engine_idle_gap(void)
 {
     Job jobs[] = { {1, 1, 2}, {2, 6, 1} };
@@ -169,7 +149,7 @@ static void test_engine_idle_gap(void)
     CHECK(stats_context_switches() == 0);
 }
 
-/* Same-second arrivals by ID (assumption 6), quantum 1, switch 0. */
+/* Same-second arrivals keep ID order. */
 static void test_engine_same_second(void)
 {
     Job jobs[] = { {1, 1, 2}, {2, 1, 2}, {3, 1, 1} };

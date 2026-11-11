@@ -1,7 +1,4 @@
-/*
- * test_logger_stats.c - Unit tests for logger.c and stats.c (P3)
- * Expected strings are hand-computed from the formulas in the task document.
- */
+/* Logger and statistics tests. */
 #include <stdlib.h>
 #include "test_util.h"
 #include "../../logger.h"
@@ -10,7 +7,7 @@
 #define TMP_LOG  "test_tmp.log"
 #define TMP_PERF "test_tmp.perf"
 
-/* Read a whole small file into a static buffer. */
+/* Read a small file into a buffer. */
 static const char *slurp(const char *path)
 {
     static char buf[8192];
@@ -35,7 +32,7 @@ static void test_logger_format(void)
     p.remaining = 3; log_event(6, &p, LOG_RESUMED);
     p.remaining = 0; log_event(9, &p, LOG_FINISHED);
 
-    /* WTA formatting edge cases */
+    /* WTA formatting. */
     log_line(9,  2, LOG_FINISHED, 1, 3, 0);    /* TA 8 / 3  = 2.666.. -> 2.67 */
     log_line(5,  3, LOG_FINISHED, 1, 4, 0);    /* TA 4 / 4  = 1       -> 1.00 */
     log_line(14, 4, LOG_FINISHED, 1, 8, 0);    /* TA 13/ 8  = 1.625   -> 1.62 (printf tie) */
@@ -55,7 +52,7 @@ static void test_logger_format(void)
         "At time 14 process 4 finished arr 1 total 8 remain 0 wait 5 TA 13 WTA 1.62\n"
         "At time 5 process 5 finished arr 1 total 6 remain 2 wait 0 TA 4 WTA 0.67\n");
 
-    /* logging before open must not crash */
+    /* Logging before open is ignored. */
     log_line(1, 1, LOG_STARTED, 1, 1, 1);
     remove(TMP_LOG);
 }
@@ -84,7 +81,7 @@ static void test_stats_example(void)
 
 static void test_stats_edges(void)
 {
-    /* zero processes: no division by zero, still four lines */
+    /* Zero processes still produce four lines. */
     stats_init();
     CHECK(stats_write(TMP_PERF) == 0);
     CHECK_STR(slurp(TMP_PERF),
@@ -93,7 +90,7 @@ static void test_stats_edges(void)
         "Avg Waiting = 0\n"
         "Std WTA = 0.00\n");
 
-    /* identical WTAs -> std exactly 0.00, utilization exactly 100 */
+    /* Identical WTAs produce zero deviation. */
     stats_init();
     stats_add(1, 5, 6, 0);
     stats_add(6, 5, 11, 0);
@@ -101,17 +98,17 @@ static void test_stats_edges(void)
     CHECK(s.cpu_utilization == 90);       /* 10 / 11 -> 90.9 -> 90 (floor) */
     CHECK(s.std_wta == 0.0);
 
-    /* utilization floors, never rounds: 789/1000 -> 78 */
+    /* Utilization is floored. */
     stats_init();
     stats_add(0, 789, 1000, 211);
     CHECK(stats_summary().cpu_utilization == 78);
 
-    /* runtime 0 is ignored, not a crash */
+    /* Ignore zero runtime. */
     stats_init();
     stats_add(1, 0, 1, 0);
     CHECK(stats_summary().count == 0);
 
-    /* counters */
+    /* Counters. */
     stats_init();
     stats_count_context_switch();
     stats_count_context_switch();
@@ -121,7 +118,7 @@ static void test_stats_edges(void)
     remove(TMP_PERF);
 }
 
-/* Avg WTA and Std WTA are computed from the UNROUNDED per-process WTAs. */
+/* WTA statistics use unrounded values. */
 static void test_unrounded_mean(void)
 {
     stats_init();

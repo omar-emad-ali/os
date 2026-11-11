@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run_tests.sh - P3's test runner for the OS scheduler project.
+# Test runner for the scheduler.
 #
 # Usage:
 #   ./run_tests.sh                    run every case in tests/cases/
@@ -19,13 +19,9 @@
 #                        (algorithm, then quantum and context switch for RR)
 #   expected.log         optional: compared with scheduler.log using diff
 #   expected.perf        optional: compared with scheduler.perf using diff
-# Without expected files only the sanity checks run (see check_sanity).
+# Without expected files, only sanity checks run.
 #
-# Every run also checks: no crash, no timeout, no IPC object left (ipcs),
-# no process of the simulation left alive.
-#
-# Environment: TIMEOUT (seconds per case, default 600). The clock ticks once
-# per real second, so a case takes about as long as its last finish time.
+# TIMEOUT sets the seconds allowed per case.
 
 set -u
 cd "$(dirname "$0")" || exit 2
@@ -39,7 +35,7 @@ pass=0; fail=0
 red()   { printf '\033[31m%s\033[0m\n' "$*"; }
 green() { printf '\033[32m%s\033[0m\n' "$*"; }
 
-# number of message queues / shared memory segments / semaphores owned by me
+# Count IPC objects owned by this user.
 ipc_count() { ipcs -q -m -s 2>/dev/null | awk -v u="$ME" '$3 == u' | wc -l; }
 
 ensure_built() {
@@ -49,8 +45,7 @@ ensure_built() {
     fi
 }
 
-# Sanity checks that need no expected output.
-# $1 = processes.txt used. Prints problems, returns 1 if any.
+# Run sanity checks.
 check_sanity() {
     local procs=$1 bad=0
     if [ ! -f scheduler.log ]; then echo "  missing scheduler.log"; return 1; fi
@@ -59,7 +54,7 @@ check_sanity() {
     if [ "$(head -n 1 scheduler.log)" != "#At time x process y state arr w total z remain y wait k" ]; then
         echo "  scheduler.log: wrong or missing header line"; bad=1
     fi
-    # every line after the header must match the exact format
+    # Check log line format.
     if grep -v '^#' scheduler.log | grep -Evq \
         '^At time [0-9]+ process [0-9]+ (started|resumed|stopped) arr [0-9]+ total [0-9]+ remain [0-9]+ wait [0-9]+$|^At time [0-9]+ process [0-9]+ finished arr [0-9]+ total [0-9]+ remain 0 wait [0-9]+ TA [0-9]+ WTA [0-9]+\.[0-9]{2}$'; then
         echo "  scheduler.log: badly formatted line(s):"
@@ -67,10 +62,10 @@ check_sanity() {
         '^At time [0-9]+ process [0-9]+ (started|resumed|stopped) arr [0-9]+ total [0-9]+ remain [0-9]+ wait [0-9]+$|^At time [0-9]+ process [0-9]+ finished arr [0-9]+ total [0-9]+ remain 0 wait [0-9]+ TA [0-9]+ WTA [0-9]+\.[0-9]{2}$' | head -3 | sed 's/^/    /'
         bad=1
     fi
-    # every process finished exactly once
+    # Check that every process finished once.
     local want got dup
     want=$(grep -Ev '^[[:space:]]*(#|$)' "$procs" | awk -F'\t' '{print $1}' | sort -n)
-    # "At time T process ID finished ..." -> field 6 is the state, 5 the id
+    # Field 5 is the process ID and field 6 is the state.
     got=$(awk '$6 == "finished" {print $5}' scheduler.log | sort -n)
     dup=$(echo "$got" | uniq -d)
     if [ "$want" != "$got" ]; then
@@ -78,7 +73,7 @@ check_sanity() {
         [ -n "$dup" ] && echo "    finished twice: $(echo $dup)"
         bad=1
     fi
-    # perf: exactly four lines with the exact format
+    # Check performance output.
     if [ "$(wc -l < scheduler.perf)" -ne 4 ] ||
        ! sed -n 1p scheduler.perf | grep -Eq '^CPU utilization = [0-9]+%$' ||
        ! sed -n 2p scheduler.perf | grep -Eq '^Avg WTA = [0-9]+\.[0-9]{2}$' ||
@@ -89,7 +84,7 @@ check_sanity() {
     return $bad
 }
 
-# Run one simulation. $1 = case dir. Output stays in the repository root.
+# Run one simulation.
 run_simulation() {
     local dir=$1
     rm -f scheduler.log scheduler.perf
@@ -100,9 +95,7 @@ run_simulation() {
         printf '#pid\tresourceid\tcapturetime\treleasetime\n' > resources.txt
     fi
 
-    # Own session/process group: destroyClk(true) kills its whole group,
-    # which must not include this script. Here setsid execs in place, so
-    # $! is the generator's pid and also the group id.
+    # Use a separate process group for cleanup.
     setsid ./process_generator.out < "$dir/input" > "$WORK_DIR/stdout.txt" 2>&1 &
     local pgid=$! waited=0
     while kill -0 "$pgid" 2>/dev/null; do
@@ -118,7 +111,7 @@ run_simulation() {
     wait "$pgid"
     local status=$?
     sleep 1   # let the clock and children finish their own cleanup
-    # exit by SIGINT (130) is how destroyClk(true) ends the group: accepted
+    # SIGINT is the expected cleanup status.
     if [ "$status" -ne 0 ] && [ "$status" -ne 130 ]; then
         echo "  process_generator exited with status $status (crash?). Last output:"
         tail -n 5 "$WORK_DIR/stdout.txt" | sed 's/^/    /'
@@ -133,7 +126,7 @@ run_simulation() {
     return 0
 }
 
-# Run one case folder and print PASS/FAIL. $1 = name, $2 = bless (0/1)
+# Run one case and print PASS/FAIL.
 run_case() {
     local name=$1 bless=${2:-0} dir="$CASES_DIR/$1" ok=1
     if [ ! -f "$dir/processes.txt" ] || [ ! -f "$dir/input" ]; then
@@ -151,7 +144,7 @@ run_case() {
         echo "  IPC leak: $((ipc_after - ipc_before)) object(s) left (see ipcs)"; ok=0
     fi
 
-    # after a crash or timeout the output files are meaningless: stop here
+    # Stop after a crash or timeout.
     if [ "$ran" -eq 0 ]; then
         red "FAIL $name"; fail=$((fail + 1)); return
     fi

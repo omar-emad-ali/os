@@ -1,16 +1,4 @@
-/*
- * pcb.h - Process Control Block
- *
- * >>> OWNER: P2.  THIS IS A DRAFT written by P3 so P3's modules compile
- * >>> before the kick-off. P2 may add fields or rename anything EXCEPT the
- * >>> ones marked [P3] below without breaking P3's code (if they must be
- * >>> renamed, update logger.c / rr.c / tests in the same commit).
- *
- * Fields read by P3's modules:
- *   [P3] id, arrival, runtime, remaining, executed  -> logger.c
- *   [P3] executed                                    -> rr.c (quantum count)
- *   [P3] heap_index                                  -> heap callbacks (SJF/HPF)
- */
+/* Process Control Block. */
 #ifndef PCB_H
 #define PCB_H
 

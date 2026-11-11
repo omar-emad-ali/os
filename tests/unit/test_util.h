@@ -1,7 +1,4 @@
-/*
- * test_util.h - Minimal assertion helpers for P3's unit tests.
- * Each test binary returns 0 if every CHECK passed, 1 otherwise.
- */
+/* Assertion helpers for unit tests. */
 #ifndef TEST_UTIL_H
 #define TEST_UTIL_H
 

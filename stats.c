@@ -1,6 +1,4 @@
-/*
- * stats.c - scheduler.perf writer (owner: P3). See stats.h for formulas.
- */
+/* scheduler.perf writer. */
 #include <math.h>
 #include "stats.h"
 
@@ -27,7 +25,7 @@ void stats_init(void)
 
 void stats_add(int arrival, int runtime, int finish, int wait)
 {
-    if (runtime <= 0)                 /* defensive: invalid input, skip */
+    if (runtime <= 0)                 /* Ignore invalid runtimes. */
         return;
     int ta = finish - arrival;
     double wta = (double)ta / (double)runtime;
@@ -52,12 +50,11 @@ StatsSummary stats_summary(void)
 
     long long elapsed = (long long)last_finish - STATS_TIME_ORIGIN;
     if (elapsed > 0)
-        s.cpu_utilization = (int)((sum_runtime * 100) / elapsed); /* exact floor */
+        s.cpu_utilization = (int)((sum_runtime * 100) / elapsed);
     if (s.cpu_utilization > 100)
         s.cpu_utilization = 100;
 
     s.avg_wta = wta_mean;
-    /* floor of the mean; wait can't be negative, but floor properly anyway */
     s.avg_waiting = (int)floor((double)sum_wait / count);
     double variance = wta_m2 / count;               /* population: / N */
     s.std_wta = variance > 0.0 ? sqrt(variance) : 0.0;

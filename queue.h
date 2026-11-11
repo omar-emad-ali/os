@@ -1,13 +1,4 @@
-/*
- * queue.h - Generic FIFO queue (owner: P3)
- *
- * A growable circular buffer of void* items.
- *   - enqueue / dequeue / peek : O(1) (enqueue is amortised O(1) when it grows)
- *   - remove of an arbitrary item: O(n) (rarely needed, e.g. defensive cleanup)
- *
- * The queue never owns the items: destroying it frees only the buffer.
- * Used by Round Robin (rr.c) and as a general helper.
- */
+/* Generic FIFO queue. */
 #ifndef QUEUE_H
 #define QUEUE_H
 
@@ -18,11 +9,10 @@ typedef struct Queue {
     int size;       /* number of stored items                 */
 } Queue;
 
-/* Create an empty queue. initial_capacity <= 0 picks a small default.
- * Returns NULL if memory allocation fails. */
+/* Create an empty queue. */
 Queue *queue_create(int initial_capacity);
 
-/* Free the queue buffer (not the items). Safe to call with NULL. */
+/* Free the queue buffer, not its items. */
 void queue_destroy(Queue *q);
 
 /* Append item at the tail. Returns 0 on success, -1 on failure. */
@@ -34,14 +24,13 @@ void *queue_dequeue(Queue *q);
 /* Return the head item without removing it, or NULL if empty. */
 void *queue_peek(const Queue *q);
 
-/* Number of items currently stored (0 for a NULL queue). */
+/* Return the number of stored items. */
 int queue_size(const Queue *q);
 
-/* 1 if the queue is empty (or NULL), 0 otherwise. */
+/* Return whether the queue is empty. */
 int queue_is_empty(const Queue *q);
 
-/* Remove the first occurrence of item, keeping the order of the others.
- * Returns 1 if it was found and removed, 0 otherwise. */
+/* Remove the first matching item. */
 int queue_remove(Queue *q, const void *item);
 
 #endif /* QUEUE_H */

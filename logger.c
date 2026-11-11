@@ -1,6 +1,4 @@
-/*
- * logger.c - scheduler.log writer (owner: P3). See logger.h for the format.
- */
+/* scheduler.log writer. */
 #include <stdlib.h>
 #include "logger.h"
 
@@ -22,13 +20,13 @@ const char *log_state_name(LogState state)
 
 int logger_open(const char *path)
 {
-    logger_close();                       /* never leak a previous file */
+    logger_close();                       /* close any previous file */
     log_file = fopen(path ? path : LOG_FILE_NAME, "w");
     if (!log_file) {
         perror("logger: cannot open log file");
         return -1;
     }
-    /* full buffering: one write() per 64 KB instead of one per line */
+    /* Use a larger output buffer. */
     log_buffer = malloc(LOG_BUFFER_SIZE);
     if (log_buffer)
         setvbuf(log_file, log_buffer, _IOFBF, LOG_BUFFER_SIZE);
@@ -69,6 +67,6 @@ void logger_close(void)
         fclose(log_file);
         log_file = NULL;
     }
-    free(log_buffer);                     /* only after fclose (setvbuf rule) */
+    free(log_buffer);
     log_buffer = NULL;
 }

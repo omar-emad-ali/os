@@ -1,13 +1,10 @@
-/*
- * heap.c - Generic binary min-heap implementation (owner: P3)
- * See heap.h for the interface. Array-based, children of i are 2i+1, 2i+2.
- */
+/* Generic binary min-heap implementation. */
 #include <stdlib.h>
 #include "heap.h"
 
 #define HEAP_DEFAULT_CAPACITY 16
 
-/* Store elem at position i and tell the element its new index. */
+/* Store an element and update its index. */
 static void heap_place(Heap *h, int i, void *elem)
 {
     h->data[i] = elem;
@@ -15,7 +12,7 @@ static void heap_place(Heap *h, int i, void *elem)
         h->set_index(elem, i);
 }
 
-/* Move the element at i up while it is smaller than its parent. */
+/* Move an element toward the root. */
 static int sift_up(Heap *h, int i)
 {
     void *elem = h->data[i];
@@ -30,7 +27,7 @@ static int sift_up(Heap *h, int i)
     return i;
 }
 
-/* Move the element at i down while a child is smaller. */
+/* Move an element toward the leaves. */
 static int sift_down(Heap *h, int i)
 {
     void *elem = h->data[i];
@@ -105,7 +102,7 @@ void *heap_remove_at(Heap *h, int index)
     void *removed = h->data[index];
     h->size--;
     if (index != h->size) {
-        /* move the last element into the hole and fix it in either direction */
+        /* Replace the removed element and restore heap order. */
         h->data[index] = h->data[h->size];
         if (sift_up(h, index) == index)
             sift_down(h, index);

@@ -1,13 +1,11 @@
-/*
- * test_queue_heap.c - Unit tests for queue.c and heap.c (P3)
- */
+/* Queue and heap tests. */
 #include <stdlib.h>
 #include "test_util.h"
 #include "../../queue.h"
 #include "../../heap.h"
 #include "../../pcb.h"
 
-/* ---------- queue ---------- */
+/* Queue. */
 static void test_queue(void)
 {
     int v[100];
@@ -19,7 +17,7 @@ static void test_queue(void)
     CHECK(queue_dequeue(q) == NULL);
     CHECK(queue_peek(q) == NULL);
 
-    /* wrap around before growing: push 2, pop 1, push more */
+    /* Test wraparound before growth. */
     queue_enqueue(q, &v[0]);
     queue_enqueue(q, &v[1]);
     CHECK(queue_dequeue(q) == &v[0]);
@@ -27,7 +25,7 @@ static void test_queue(void)
     CHECK(queue_size(q) == 99);
     CHECK(queue_peek(q) == &v[1]);
 
-    /* remove from the middle keeps order */
+    /* Removing an item keeps order. */
     CHECK(queue_remove(q, &v[50]) == 1);
     CHECK(queue_remove(q, &v[50]) == 0);
     int ok = 1;
@@ -42,7 +40,7 @@ static void test_queue(void)
     CHECK(queue_size(NULL) == 0);
 }
 
-/* ---------- heap with PCBs (SJF-like comparator) ---------- */
+/* Heap with PCBs. */
 static int cmp_runtime(const void *a, const void *b)
 {
     const PCB *x = a, *y = b;
@@ -59,7 +57,7 @@ static int cmp_priority(const void *a, const void *b)
 }
 static void set_idx(void *e, int i) { ((PCB *)e)->heap_index = i; }
 
-/* every element's stored index must match its real position */
+/* Stored indexes match positions. */
 static int indices_consistent(const Heap *h)
 {
     for (int i = 0; i < h->size; i++)
@@ -94,7 +92,7 @@ static void test_heap_basic(void)
     heap_destroy(h);
 }
 
-/* priority change and arbitrary removal (inheritance / aging) */
+/* Priority changes and arbitrary removal. */
 static void test_heap_update_remove(void)
 {
     enum { N = 200 };
@@ -108,7 +106,7 @@ static void test_heap_update_remove(void)
     }
     CHECK(heap_is_valid(h) && indices_consistent(h));
 
-    /* random priority changes, both directions */
+    /* Test changes in both directions. */
     int ok = 1;
     for (int k = 0; k < 1000; k++) {
         PCB *x = &p[rand() % N];
@@ -119,13 +117,13 @@ static void test_heap_update_remove(void)
     }
     CHECK(ok);
 
-    /* inheritance case: a low-priority holder jumps to the top */
+    /* A priority increase moves the item to the top. */
     PCB *holder = &p[N - 1];
     holder->effective_priority = -1;           /* better than anything */
     heap_update(h, holder->heap_index);
     CHECK(heap_peek(h) == holder);
 
-    /* arbitrary removals */
+    /* Remove arbitrary items. */
     ok = 1;
     for (int i = 0; i < N; i += 3) {
         if (p[i].heap_index < 0) continue;

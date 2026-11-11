@@ -1,7 +1,4 @@
-/*
- * queue.c - Generic FIFO queue implementation (owner: P3)
- * See queue.h for the interface and complexity guarantees.
- */
+/* Generic FIFO queue implementation. */
 #include <stdlib.h>
 #include "queue.h"
 
@@ -33,7 +30,7 @@ void queue_destroy(Queue *q)
     free(q);
 }
 
-/* Double the buffer and unroll the circular content so head becomes 0. */
+/* Grow the buffer and reset the head index. */
 static int queue_grow(Queue *q)
 {
     int new_capacity = q->capacity * 2;
@@ -94,7 +91,7 @@ int queue_remove(Queue *q, const void *item)
         return 0;
     for (int i = 0; i < q->size; i++) {
         if (q->items[(q->head + i) % q->capacity] == item) {
-            /* shift the following items one step towards the head */
+            /* Keep the remaining items in order. */
             for (int j = i; j < q->size - 1; j++)
                 q->items[(q->head + j) % q->capacity] =
                     q->items[(q->head + j + 1) % q->capacity];
