@@ -33,4 +33,38 @@ typedef struct PCB {
     int   heap_index;         /* [P3] position in a ready heap, -1 = not in  */
 } PCB;
 
+/* ---- PCB table API (implemented in pcb.c, P2) ---- */
+
+/* Create the PCB table; expected_count is the number of processes. 0 on success. */
+int pcb_table_init(int expected_count);
+
+/* Free every remaining PCB and the table itself. */
+void pcb_table_destroy(void);
+
+/* Create a PCB and register it by id. Returns NULL on bad input or duplicate id. */
+PCB *pcb_create(int id, int arrival, int runtime, int priority);
+
+/* O(1) lookup by process id. Returns NULL if unknown. */
+PCB *pcb_get(int id);
+
+/* Remove a PCB from the table and free it. */
+void pcb_destroy(PCB *pcb);
+
+/* Number of PCBs currently alive. */
+int pcb_count(void);
+
+/* Add CPU seconds to executed and recompute remaining. */
+void pcb_add_executed(PCB *pcb, int seconds);
+
+/* wait = now - arrival - executed (never negative). Also stores it in pcb->waiting. */
+int pcb_update_waiting(PCB *pcb, int now);
+
+/* TA = finish_time - arrival. */
+int pcb_turnaround(const PCB *pcb);
+
+/* WTA = TA / runtime (0.0 if runtime is 0). */
+double pcb_wta(const PCB *pcb);
+
+/* Text name of a state, for debugging. */
+const char *pcb_state_name(ProcState state);
 #endif /* PCB_H */
